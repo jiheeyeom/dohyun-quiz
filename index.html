@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>브레인 아레나 - 파이널 에디션</title>
+    <style>
+        /* [3.4] CSS 변수를 활용한 다크모드/라이트모드 지원 */
+        :root {
+            --bg-color: #f0f2f5;
+            --container-bg: #ffffff;
+            --text-main: #333333;
+            --text-sub: #6c757d;
+            --primary-btn-bg: #e7f1ff;
+            --primary-btn-text: #0d6efd;
+            --primary-btn-border: #b6d4fe;
+            --action-btn-bg: #0d6efd;
+            --action-btn-hover: #0b5ed7;
+            --option-bg: #f8f9fa;
+            --option-border: #dee2e6;
+            --option-hover: #e2e6ea;
+            --border-color: #dee2e6;
+            --card-bg: #f8f9fa;
+        }
+
+        body.dark-mode {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-main: #f0f0f0;
+            --text-sub: #a0a0a0;
+            --primary-btn-bg: #2c3e50;
+            --primary-btn-text: #6ea8fe;
+            --primary-btn-border: #4a6fa5;
+            --action-btn-bg: #3b82f6;
+            --action-btn-hover: #2563eb;
+            --option-bg: #2d2d2d;
+            --option-border: #444444;
+            --option-hover: #3d3d3d;
+            --border-color: #444444;
+            --card-bg: #2a2a2a;
+        }
+
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; transition: background-color 0.3s, color 0.3s; }
+        .app-container { background-color: var(--container-bg); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); width: 100%; max-width: 500px; padding: 30px; box-sizing: border-box; position: relative; overflow: hidden; transition: background-color 0.3s; }
+        h1, h2, h3 { text-align: center; margin-top: 0; }
+        
+        button { font-family: inherit; cursor: pointer; border-radius: 8px; transition: all 0.2s ease; border: none; color: var(--text-main); }
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 버튼 스타일 */
+        .primary-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; background-color: var(--primary-btn-bg); color: var(--primary-btn-text); border: 2px solid var(--primary-btn-border); font-size: 1.1em; font-weight: bold; }
+        .primary-btn:hover { filter: brightness(0.95); }
+        .action-btn { width: 100%; padding: 15px; background-color: var(--action-btn-bg); color: white; font-size: 1.1em; font-weight: bold; margin-bottom: 10px; }
+        .action-btn:hover { background-color: var(--action-btn-hover); }
+        
+        /* 유틸리티 바 (다크모드, 사운드 등) */
+        .utility-bar { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
+        .util-btn { background: transparent; border: 1px solid var(--border-color); padding: 5px 10px; font-size: 0.9em; border-radius: 4px; color: var(--text-main); }
+        
+        /* 퀴즈 UI */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: var(--card-bg); padding: 10px; border-radius: 8px; }
+        .stat-badge { font-weight: bold; font-size: 0.9em; color: var(--text-sub); }
+        .combo-text { color: #dc3545; font-weight: bold; animation: pop 0.3s ease; }
+        #timer-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; margin-bottom: 20px; overflow: hidden; display: none; }
+        #timer-bar { height: 100%; width: 100%; background-color: #198754; transition: width 0.1s linear; }
+
+        .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        #question-text { font-size: 1.2em; text-align: left; margin-bottom: 25px; line-height: 1.4; word-break: keep-all; }
+        
+        .option-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; background-color: var(--option-bg); border: 2px solid var(--option-border); font-size: 1em; text-align: left; color: var(--text-main); }
+        .option-btn:hover:not(:disabled) { background-color: var(--option-hover); }
+        .option-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+        
+        /* 정답/오답 명시성 (다크모드에서도 잘 보이도록) */
+        .option-btn.correct { background-color: #198754 !important; border-color: #146c43 !important; color: white !important; opacity: 1; }
+        .option-btn.wrong { background-color: #dc3545 !important; border-color: #b02a37 !important; color: white !important; opacity: 1; }
+
+        #feedback-area { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color); display: none; }
+        #explanation { font-size: 0.95em; color: var(--text-sub); margin-bottom: 15px; line-height: 1.5; }
+
+        /* 결과 & 대시보드 UI */
+        .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+        .result-box { background: var(--card-bg); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); }
+        .result-box div:first-child { font-size: 0.85em; color: var(--text-sub); margin-bottom: 5px; }
+        .result-box div:last-child { font-size: 1.2em; font-weight: bold; color: var(--primary-btn-text); }
+        
+        .dashboard-list { list-style: none; padding: 0; margin: 0; }
+        .dashboard-list li { background: var(--card-bg); margin-bottom: 8px; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary-btn-text); font-size: 0.9em; }
+
+        /* 옵션 선택 영역 */
+        .select-group { margin-bottom: 15px; text-align: left; }
+        .select-group select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--container-bg); color: var(--text-main); font-family: inherit; }
+
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <div id="start-screen" class="screen active">
+        <div class="utility-bar">
+            <button class="util-btn" onclick="toggleDarkMode()" id="dark-mode-btn">🌙 다크모드</button>
+            <button class="util-btn" onclick="toggleSound()" id="sound-btn">🔊 사운드 ON</button>
+            <button class="util-btn" onclick="showScreen('dashboard-screen'); renderDashboard();">📊 내 대시보드</button>
+        </div>
+
+        <h1>브레인 아레나 🧠</h1>
+        
+        <div class="select-group">
+            <label style="font-size: 0.9em; color: var(--text-sub);">난이도 선택</label>
+            <select id="difficulty-select">
+                <option value="all">모든 난이도 (랜덤)</option>
+                <option value="easy">쉬움 (Easy)</option>
+                <option value="medium">보통 (Medium)</option>
+                <option value="hard">어려움 (Hard)</option>
+            </select>
+        </div>
+
+        <button class="primary-btn" onclick="selectMode('full')">전체 도전 모드 (50문제)</button>
+        <button class="primary-btn" onclick="selectMode('speed')">스피드 퀴즈 모드 (15초 제한)</button>
+        <button class="primary-btn" onclick="selectMode('category')">카테고리 집중 모드</button>
+        
+        <div id="category-selection" style="display:none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+            <div id="category-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+        </div>
+    </div>
+
+    <div id="quiz-screen" class="screen">
+        <div class="top-bar">
+            <span class="stat-badge" id="combo-display">0 Combo</span>
+            <div>
+                <button class="util-btn" id="hint-btn" onclick="useHint()" style="background:#ffc107; color:#000; border:none; font-weight:bold;">힌트 (<span id="hint-count">3</span>)</button>
+                <button class="util-btn" onclick="togglePause()">일시정지</button>
+            </div>
+        </div>
+        
+        <div id="timer-container"><div id="timer-bar"></div></div>
+        
+        <div class="quiz-header">
+            <div id="progress-text"></div>
+            <div id="score-display" class="stat-badge" style="color:var(--primary-btn-text);">Score: 0</div>
+        </div>
+        
+        <h2 id="question-text">문제 텍스트</h2>
+        <div id="options-container" tabindex="0"></div>
+        
+        <div id="feedback-area">
+            <p id="explanation"></p>
+            <button class="action-btn" id="next-btn" onclick="nextQuestion()">다음 문제</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <h2>게임 종료! 🎉</h2>
+        <div class="result-grid">
+            <div class="result-box"><div>최종 점수</div><div id="res-score">0</div></div>
+            <div class="result-box"><div>정답률</div><div id="res-accuracy">0%</div></div>
+        </div>
+        
+        <button class="action-btn" onclick="shareResult()">결과 클립보드에 복사 📋</button>
+        <button class="primary-btn" onclick="location.reload()">타이틀로 돌아가기</button>
+        <button class="primary-btn" onclick="showScreen('dashboard-screen'); renderDashboard();">내 통계 보기</button>
+    </div>
+
+    <div id="dashboard-screen" class="screen">
+        <h2>내 통계 대시보드 📊</h2>
+        
+        <div class="result-grid">
+            <div class="result-box"><div>총 플레이 횟수</div><div id="dash-plays">0회</div></div>
+            <div class="result-box"><div>개인 최고 점수</div><div id="dash-best">0점</div></div>
+        </div>
+
+        <h3 style="font-size: 1em; text-align: left; color: var(--text-sub); margin-top: 20px;">최근 플레이 기록 (Top 5)</h3>
+        <ul class="dashboard-list" id="dash-history"></ul>
+
+        <button class="action-btn" onclick="location.reload()" style="margin-top: 20px;">타이틀로 돌아가기</button>
+    </div>
+
+</div>
+
+<script>
+    // ==========================================
+    // 데이터 삽입 영역 (50문제 배열)
+    // ==========================================
+   const allQuizData = [
+    // --- [1. 한국사 (10문제)] ---
+    { id: 1, category: "한국사", difficulty: "easy", question: "1443년 백성을 위해 훈민정음을 창제한 조선의 제4대 왕은?", options: ["태조", "세종", "영조", "정조"], correctAnswer: 1, explanation: "세종대왕은 1443년 훈민정음을 창제하고 1446년에 반포했습니다." },
+    { id: 2, category: "한국사", difficulty: "medium", question: "1392년 위화도 회군을 계기로 고려를 무너뜨리고 조선을 건국한 인물은?", options: ["이성계", "왕건", "이방원", "이순신"], correctAnswer: 0, explanation: "태조 이성계는 1392년 조선을 건국했습니다." },
+    { id: 3, category: "한국사", difficulty: "hard", question: "조선 선조 시기인 1592년에 일본의 침략으로 발발한 전쟁의 이름은?", options: ["병자호란", "임진왜란", "정묘호란", "살수대첩"], correctAnswer: 1, explanation: "임진왜란은 1592년(선조 25년)에 발발하여 1598년까지 이어졌습니다." },
+    { id: 4, category: "한국사", difficulty: "easy", question: "임진왜란 당시 한산도 대첩 등에서 거북선과 판옥선을 이끌고 조선 수군을 승리로 이끈 명장은?", options: ["강감찬", "을지문덕", "이순신", "권율"], correctAnswer: 2, explanation: "이순신 장군은 임진왜란 중 수군을 이끌고 큰 승리를 거두었습니다." },
+    { id: 5, category: "한국사", difficulty: "medium", question: "698년, 고구려 유민과 말갈족을 모아 동모산에서 '발해'를 건국한 초대 왕은?", options: ["주몽", "대조영", "장수왕", "광개토대왕"], correctAnswer: 1, explanation: "대조영은 고구려 멸망 후 유민들을 이끌고 발해를 세웠습니다." },
+    { id: 6, category: "한국사", difficulty: "easy", question: "1919년 3월 1일, 민족 대표 33인이 독립 선언서를 낭독하며 전국적으로 일어난 대규모 독립 만세 운동은?", options: ["3.1 운동", "6.10 만세운동", "광주 학생 항일 운동", "물산 장려 운동"], correctAnswer: 0, explanation: "3.1 운동은 일제강점기 최대 규모의 민족 해방 운동입니다." },
+    { id: 7, category: "한국사", difficulty: "medium", question: "1909년, 안중근 의사가 한국 침략의 원흉인 이토 히로부미를 저격한 역의 이름은?", options: ["상하이 역", "도쿄 역", "하얼빈 역", "블라디보스토크 역"], correctAnswer: 2, explanation: "안중근 의사는 1909년 10월 26일 만주 하얼빈 역에서 이토 히로부미를 사살했습니다." },
+    { id: 8, category: "한국사", difficulty: "hard", question: "고려 시대 몽골의 침입에 맞서 1232년 수도를 강화도로 옮기고 장기 항전을 주도한 무신 정권의 집권자는?", options: ["이의방", "정중부", "최충헌", "최우"], correctAnswer: 3, explanation: "최우는 몽골군의 침입에 대비해 수도를 개경에서 강화도로 천도했습니다." },
+    { id: 9, category: "한국사", difficulty: "medium", question: "1919년 3.1 운동을 계기로 중국 상하이에 수립된 '대한민국 임시정부'의 초대 대통령은?", options: ["김구", "안창호", "이동휘", "이승만"], correctAnswer: 3, explanation: "대한민국 임시정부의 초대 대통령은 이승만, 국무총리는 이동휘로 출범했습니다." },
+    { id: 10, category: "한국사", difficulty: "hard", question: "660년, 신라가 백제를 멸망시킬 당시 김유신이 이끄는 신라군과 계백이 이끄는 백제 결사대가 맞붙은 최후의 전투는?", options: ["살수대첩", "황산벌 전투", "안시성 전투", "매소성 전투"], correctAnswer: 1, explanation: "황산벌 전투에서 백제의 계백 장군은 5천 결사대와 함께 장렬히 전사했습니다." },
+
+    // --- [2. 과학 (10문제)] ---
+    { id: 11, category: "과학", difficulty: "easy", question: "순수한 물(H2O)의 분자를 구성하는 두 가지 원소는 무엇인가요?", options: ["질소와 산소", "탄소와 수소", "수소와 산소", "헬륨과 산소"], correctAnswer: 2, explanation: "물 분자는 수소(H) 원자 2개와 산소(O) 원자 1개의 결합으로 이루어져 있습니다." },
+    { id: 12, category: "과학", difficulty: "easy", question: "우리 태양계의 행성들 중, 부피와 질량을 기준으로 가장 큰 행성은 무엇인가요?", options: ["지구", "화성", "목성", "토성"], correctAnswer: 2, explanation: "목성은 태양계에서 질량과 부피가 가장 큰 거대 가스 행성입니다." },
+    { id: 13, category: "과학", difficulty: "hard", question: "진공 상태를 기준으로, 빛은 1초에 약 몇 만 km를 이동할까요?", options: ["10만 km", "20만 km", "30만 km", "40만 km"], correctAnswer: 2, explanation: "진공에서 빛의 속도는 1초에 약 299,792km(약 30만 km)입니다." },
+    { id: 14, category: "과학", difficulty: "medium", question: "1859년 '종의 기원'을 출간하며 자연선택설을 바탕으로 한 진화론을 확립한 생물학자는?", options: ["그레고어 멘델", "찰스 다윈", "루이 파스퇴르", "제임스 왓슨"], correctAnswer: 1, explanation: "찰스 다윈은 생물이 환경에 적응하며 진화한다는 자연선택설을 제시했습니다." },
+    { id: 15, category: "과학", difficulty: "easy", question: "지구가 자전축을 중심으로 서쪽에서 동쪽으로 한 바퀴 도는 '자전'의 대략적인 주기는 얼마인가요?", options: ["약 12시간", "약 24시간", "약 30일", "약 365일"], correctAnswer: 1, explanation: "지구의 자전 주기는 약 24시간이며, 이로 인해 지구상에 낮과 밤이 생깁니다." },
+    { id: 16, category: "과학", difficulty: "medium", question: "1928년 푸른곰팡이(페니실리움)에서 인류 최초의 항생제인 '페니실린'을 발견한 스코틀랜드의 미생물학자는?", options: ["알렉산더 플레밍", "마리 퀴리", "알베르트 아인슈타인", "아이작 뉴턴"], correctAnswer: 0, explanation: "알렉산더 플레밍은 우연한 기회에 세균 증식을 억제하는 페니실린을 발견했습니다." },
+    { id: 17, category: "과학", difficulty: "hard", question: "원자의 중심에 있는 원자핵을 구성하는 입자 중 전기적으로 '양전하(+)'를 띠는 입자의 이름은?", options: ["전자", "중성자", "양성자", "광자"], correctAnswer: 2, explanation: "원자핵은 양전하(+)를 띠는 양성자와 전하가 없는 중성자로 이루어져 있습니다." },
+    { id: 18, category: "과학", difficulty: "easy", question: "식물이 빛 에너지를 이용하여 이산화탄소와 물로부터 스스로 양분(포도당)을 합성하는 과정은?", options: ["호흡", "광합성", "소화", "증산 작용"], correctAnswer: 1, explanation: "식물은 엽록체에서 광합성을 통해 양분을 만들고 부산물로 산소를 배출합니다." },
+    { id: 19, category: "과학", difficulty: "medium", question: "시간과 공간이 절대적인 것이 아니라 관찰자의 상대적 속도와 중력에 따라 다르게 흐른다는 '상대성 이론'을 발표한 물리학자는?", options: ["닐스 보어", "스티븐 호킹", "갈릴레오 갈릴레이", "알베르트 아인슈타인"], correctAnswer: 3, explanation: "아인슈타인은 1905년 특수 상대성 이론, 1915년 일반 상대성 이론을 발표했습니다." },
+    { id: 20, category: "과학", difficulty: "hard", question: "1901년 인간의 혈액형을 A, B, O, AB형(ABO식)으로 최초 분류하여 현대 수혈 의학의 기초를 마련한 학자는?", options: ["카를 란트슈타이너", "윌리엄 하비", "에드워드 제너", "안토니 판 레이우엔훅"], correctAnswer: 0, explanation: "카를 란트슈타이너는 혈액형 발견의 공로로 1930년 노벨 생리의학상을 수상했습니다." },
+
+    // --- [3. 지리 (10문제)] ---
+    { id: 21, category: "지리", difficulty: "easy", question: "지구상에서 전체 표면적을 기준으로 가장 넓은 면적을 차지하고 있는 바다는 어디인가요?", options: ["대서양", "인도양", "북극해", "태평양"], correctAnswer: 3, explanation: "태평양은 지구 전체 표면적의 약 30%를 차지하는 세계 최대의 대양입니다." },
+    { id: 22, category: "지리", difficulty: "medium", question: "남아메리카 대륙을 가로지르며 흐르는 강으로, 세계에서 유역 면적이 가장 넓은 강은?", options: ["나일 강", "아마존 강", "미시시피 강", "갠지스 강"], correctAnswer: 1, explanation: "길이는 나일강과 비슷하나, 유역 면적과 유량 면에서는 아마존 강이 압도적 세계 1위입니다." },
+    { id: 23, category: "지리", difficulty: "hard", question: "국제연합(UN) 인정 독립국가 중, 영토 면적이 0.44㎢로 세계에서 가장 작은 국가는 어디인가요?", options: ["모나코", "투발루", "바티칸 시국", "산마리노"], correctAnswer: 2, explanation: "바티칸 시국은 이탈리아 로마 시내에 위치한 교황령 국가로 면적이 가장 작습니다." },
+    { id: 24, category: "지리", difficulty: "easy", question: "해수면을 기준으로 측정한 해발 고도가 8,848m로, 세계에서 가장 높은 산의 이름은?", options: ["몽블랑", "킬리만자로 산", "안데스 산맥", "에베레스트 산"], correctAnswer: 3, explanation: "에베레스트 산은 아시아 히말라야 산맥에 위치한 지구상의 최고봉입니다." },
+    { id: 25, category: "지리", difficulty: "medium", question: "동해에 위치한 대한민국의 가장 동쪽 영토로, 천연기념물 제336호로 지정된 섬은?", options: ["울릉도", "제주도", "독도", "마라도"], correctAnswer: 2, explanation: "독도는 역사적, 지리적, 국제법적으로 명백한 대한민국의 고유 영토입니다." },
+    { id: 26, category: "지리", difficulty: "hard", question: "아프리카 대륙의 최남단 근처에 위치하며, 역사적으로 대서양과 인도양을 연결하는 주요 항로의 기준점이었던 곶(Cape)의 이름은?", options: ["마젤란 해협", "호르무즈 해협", "희망봉", "혼 곶"], correctAnswer: 2, explanation: "남아프리카 공화국에 위치한 희망봉(Cape of Good Hope)은 바스쿠 다 가마가 인도 항로를 개척할 때 통과한 곳입니다." },
+    { id: 27, category: "지리", difficulty: "medium", question: "북아프리카에 위치하며, 극지방의 빙설 사막을 제외한 아열대(열대) 사막 중 세계에서 가장 넓은 면적을 차지하는 사막은?", options: ["고비 사막", "사하라 사막", "아타카마 사막", "모하비 사막"], correctAnswer: 1, explanation: "극지방(남극, 북극)을 제외하면 사하라 사막이 세계에서 가장 넓은 사막입니다." },
+    { id: 28, category: "지리", difficulty: "easy", question: "미국 뉴욕주와 캐나다 온타리오주의 국경에 걸쳐 있으며, 이리호에서 온타리오호로 흐르는 세계적인 규모의 폭포는?", options: ["빅토리아 폭포", "이구아수 폭포", "엔젤 폭포", "나이아가라 폭포"], correctAnswer: 3, explanation: "나이아가라 폭포는 북미에서 가장 큰 폭포로 국경선 상에 위치해 있습니다." },
+    { id: 29, category: "지리", difficulty: "easy", question: "오세아니아 대륙 본토 전체를 단일 국가의 영토로 차지하고 있는 국가는 어디인가요?", options: ["뉴질랜드", "인도네시아", "필리핀", "호주(오스트레일리아)"], correctAnswer: 3, explanation: "호주는 대륙 전체를 차지하는 세계에서 유일한 국가입니다." },
+    { id: 30, category: "지리", difficulty: "hard", question: "유럽의 이베리아 반도(스페인)와 프랑스 사이의 육상 자연 국경선을 형성하고 있는 험준한 산맥의 이름은?", options: ["알프스 산맥", "우랄 산맥", "피레네 산맥", "아펜니노 산맥"], correctAnswer: 2, explanation: "피레네 산맥은 스페인과 프랑스를 지리적, 문화적으로 구분하는 자연 경계입니다." },
+
+    // --- [4. 예술과 문화 (10문제)] ---
+    { id: 31, category: "예술과 문화", difficulty: "easy", question: "루브르 박물관에 소장되어 있으며, 신비로운 미소로 유명한 명화 '모나리자'를 그린 르네상스 시대 화가는?", options: ["빈센트 반 고흐", "파블로 피카소", "레오나르도 다 빈치", "미켈란젤로"], correctAnswer: 2, explanation: "이탈리아의 천재 예술가 레오나르도 다 빈치의 대표작입니다." },
+    { id: 32, category: "예술과 문화", difficulty: "medium", question: "영국의 극작가 윌리엄 셰익스피어의 작품 중 흔히 '4대 비극'으로 묶이는 작품에 포함되지 않는 것은?", options: ["햄릿", "오셀로", "리어왕", "로미오와 줄리엣"], correctAnswer: 3, explanation: "셰익스피어의 4대 비극은 햄릿, 오셀로, 리어왕, 맥베스입니다." },
+    { id: 33, category: "예술과 문화", difficulty: "hard", question: "교향곡에 성악(합창)을 도입한 최초의 사례로 꼽히며, 4악장에 실러의 '환희의 송가'가 포함된 루트비히 판 베토벤의 교향곡 9번의 부제는?", options: ["운명", "전원", "영웅", "합창"], correctAnswer: 3, explanation: "베토벤 교향곡 제9번 '합창'은 서양 음악사에서 가장 위대한 작품 중 하나로 평가받습니다." },
+    { id: 34, category: "예술과 문화", difficulty: "easy", question: "두꺼운 붓 터치와 강렬한 색채가 특징이며, '별이 빛나는 밤', '해바라기' 등의 걸작을 남긴 네덜란드 출신의 후기 인상주의 화가는?", options: ["클로드 모네", "빈센트 반 고흐", "폴 고갱", "에두아르 마네"], correctAnswer: 1, explanation: "고흐는 생전에는 불우했으나 현대 미술에 가장 큰 영향을 끼친 화가 중 한 명입니다." },
+    { id: 35, category: "예술과 문화", difficulty: "medium", question: "현재 파리의 상징인 '에펠탑'은 1889년 어떤 역사적 사건의 100주년을 기념하기 위해 개최된 만국박람회의 상징물로 지어졌나요?", options: ["프랑스 대혁명", "제1회 근대 올림픽", "나폴레옹의 황제 즉위", "루브르 박물관 개관"], correctAnswer: 0, explanation: "에펠탑은 1789년에 일어난 프랑스 대혁명 100주년을 기념하여 세워졌습니다." },
+    { id: 36, category: "예술과 문화", difficulty: "easy", question: "2000년대 이후 전 세계적으로 유행하며 글로벌 팬덤을 형성한 대한민국의 아이돌 중심 대중음악을 일컫는 대표적인 국제 명칭은?", options: ["J-pop", "C-pop", "K-pop", "Britpop"], correctAnswer: 2, explanation: "K-pop은 한국의 대중음악을 뜻하며 한류의 핵심 요소로 자리 잡았습니다." },
+    { id: 37, category: "예술과 문화", difficulty: "medium", question: "파리 오페라 극장의 지하에 숨어 사는 괴신사와 프리마돈나 크리스틴의 사랑을 그린 세계적인 뮤지컬 '오페라의 유령'의 작곡가는?", options: ["볼프강 아마데우스 모차르트", "리하르트 바그너", "앤드루 로이드 웨버", "스티븐 손드하임"], correctAnswer: 2, explanation: "영국의 작곡가 앤드루 로이드 웨버는 '캣츠', '오페라의 유령' 등을 탄생시켰습니다." },
+    { id: 38, category: "예술과 문화", difficulty: "hard", question: "1937년 스페인 내전 당시 작은 바스크 마을이 독일군에게 무차별 폭격을 당한 참상을 입체파 양식으로 묘사한 파블로 피카소의 대형 벽화 이름은?", options: ["아비뇽의 처녀들", "우는 여인", "기억의 지속", "게르니카"], correctAnswer: 3, explanation: "'게르니카'는 전쟁의 비극과 폭력성을 고발한 20세기 최고의 반전(反戰) 미술 작품입니다." },
+    { id: 39, category: "예술과 문화", difficulty: "easy", question: "2020년 제92회 미국 아카데미 시상식에서 비영어권 영화 최초로 작품상을 포함해 4관왕을 차지한 한국 영화 '기생충'의 감독은?", options: ["박찬욱", "봉준호", "이창동", "홍상수"], correctAnswer: 1, explanation: "봉준호 감독은 '기생충'으로 한국 영화사를 넘어 세계 영화사에 새로운 기록을 세웠습니다." },
+    { id: 40, category: "예술과 문화", difficulty: "medium", question: "기원전 5세기경 고대 그리스 아테네의 아크로폴리스 언덕에 아테나 여신을 모시기 위해 도리아식으로 지어진 건축학적 걸작의 이름은?", options: ["콜로세움", "판테온", "파르테논 신전", "피라미드"], correctAnswer: 2, explanation: "파르테논 신전은 고대 그리스 건축의 비례미를 보여주는 대표적인 유적입니다." },
+
+    // --- [5. 삼국지 독서 퀴즈 (10문제)] ---
+    { id: 41, category: "삼국지", difficulty: "easy", question: "소설 '삼국지연의'에서 유비, 관우, 장비가 복숭아꽃이 핀 동산에서 천지에 제사를 지내고 의형제를 맺은 사건을 가리키는 사자성어는?", options: ["삼고초려", "적벽대전", "도원결의", "관도대전"], correctAnswer: 2, explanation: "뜻이 맞는 사람들이 대의를 위해 굳게 결의함을 비유하는 '도원결의'입니다." },
+    { id: 42, category: "삼국지", difficulty: "medium", question: "유비가 제갈량을 자신의 군사(참모)로 맞이하기 위해 그의 초가집을 세 번이나 직접 찾아간 일화에서 유래한 고사성어는?", options: ["삼고초려", "읍참마속", "토사구팽", "다다익선"], correctAnswer: 0, explanation: "인재를 얻기 위해 지위고하를 막론하고 진심으로 노력하는 모습을 뜻합니다." },
+    { id: 43, category: "삼국지", difficulty: "hard", question: "건안 13년(208년), 조조의 대군을 맞이하여 손권과 유비의 연합군이 양쯔강에서 '화공(불)'을 이용해 조조군을 크게 물리친 결정적인 전투는?", options: ["관도대전", "이릉대전", "적벽대전", "한중공방전"], correctAnswer: 2, explanation: "적벽대전은 삼국 정립의 결정적인 계기가 된 삼국지 최대 규모의 전투입니다." },
+    { id: 44, category: "삼국지", difficulty: "easy", question: "'하루에 천 리를 달린다'고 전해지며, 본래 동탁과 여포의 소유였으나 훗날 조조를 거쳐 관우의 애마가 된 명마의 이름은?", options: ["적토마", "조황비전", "절영", "적로"], correctAnswer: 0, explanation: "'사람 중엔 여포, 말 중엔 적토'라는 말이 있을 정도로 뛰어난 붉은색 명마였습니다." },
+    { id: 45, category: "삼국지", difficulty: "medium", question: "중국 원말명초 시기에 진수의 정사 '삼국지' 기록과 민간의 전승을 바탕으로 우리가 아는 장편 소설 '삼국지연의'를 집필한 작가는?", options: ["나관중", "시내암", "오승은", "조설근"], correctAnswer: 0, explanation: "나관중이 집필한 '삼국지연의'는 동아시아에서 가장 널리 읽히는 고전 소설이 되었습니다." },
+    { id: 46, category: "삼국지", difficulty: "medium", question: "220년, 조조가 죽은 뒤 위왕의 자리를 물려받고 후한의 헌제로부터 황제 자리를 선양받아 위(魏)나라의 초대 황제가 된 인물은?", options: ["조식", "조비", "조창", "사마의"], correctAnswer: 1, explanation: "조조의 장남 조비는 후한을 공식적으로 멸망시키고 위나라의 황제(문제)에 올랐습니다." },
+    { id: 47, category: "삼국지", difficulty: "hard", question: "'삼국지연의'에서 사도 왕윤이 폭정을 일삼는 동탁과 여포의 사이를 갈라놓기 위해 미인계(연환계)에 이용한 가상의 양녀 이름은?", options: ["대교", "소교", "손상향", "초선"], correctAnswer: 3, explanation: "초선은 중국 4대 미녀 중 한 명으로 소설 속 극적인 장치를 위해 등장하는 인물입니다." },
+    { id: 48, category: "삼국지", difficulty: "hard", question: "제갈량이 자신의 후계자로 삼아 병법을 전수하였으며, 제갈량 사후 촉한의 군사권을 쥐고 아홉 차례나 북벌을 단행했던 장수는?", options: ["마속", "위연", "강유", "조운"], correctAnswer: 2, explanation: "본래 위나라 장수였던 강유는 제갈량에게 귀순한 후 촉나라 후반기를 이끈 핵심 사령관이 되었습니다." },
+    { id: 49, category: "삼국지", difficulty: "easy", question: "당양현 장판파 전투에서, 유비의 맹장 장비가 홀로 다리 위에 버티고 서서 큰 소리로 호통을 쳐 뒤쫓아오던 조조의 대군을 물러나게 한 다리의 이름은?", options: ["오장원", "낙양교", "장판교", "기산"], correctAnswer: 2, explanation: "장비가 장판교를 끊고 호통을 친 일화는 장비의 용맹함을 보여주는 대표적인 장면입니다." },
+    { id: 50, category: "삼국지", difficulty: "hard", question: "호로관 전투에서 유비, 관우, 장비 삼형제와 여포가 치열하게 맞붙었을 때, 여포가 자유자재로 휘두르며 싸웠던 그의 상징적인 무기 이름은?", options: ["청룡언월도", "장팔사모", "쌍고검", "방천화극"], correctAnswer: 3, explanation: "여포를 상징하는 무기인 방천화극은 창날 양옆에 초승달 모양의 칼날이 달린 강력한 무기입니다." }
+];
+    // --- [3.1] 로컬 데이터 관리자 (LocalDataManager) ---
+    class LocalDataManager {
+        getGameHistory() {
+            return JSON.parse(localStorage.getItem('brainArenaHistory') || '[]');
+        }
+        saveGameResult(result) {
+            const history = this.getGameHistory();
+            history.push({
+                ...result,
+                timestamp: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString()
+            });
+            localStorage.setItem('brainArenaHistory', JSON.stringify(history));
+        }
+        getBestScore() {
+            const history = this.getGameHistory();
+            return history.length ? Math.max(...history.map(h => h.totalScore)) : 0;
+        }
+    }
+    const dataManager = new LocalDataManager();
+
+    // --- [3.4] 다크모드 및 사운드 시스템 ---
+    let isDarkMode = localStorage.getItem('darkMode') === 'true';
+    let soundEnabled = true;
+    
+    // 오디오 컨텍스트 (브라우저 내장 신디사이저)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playSound(type) {
+        if (!soundEnabled) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        if (type === 'correct') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'wrong') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.2);
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        }
+    }
+
+    function toggleDarkMode() {
+        isDarkMode = !isDarkMode;
+        document.body.classList.toggle('dark-mode', isDarkMode);
+        document.getElementById('dark-mode-btn').innerText = isDarkMode ? "☀️ 라이트모드" : "🌙 다크모드";
+        localStorage.setItem('darkMode', isDarkMode);
+    }
+
+    function toggleSound() {
+        soundEnabled = !soundEnabled;
+        document.getElementById('sound-btn').innerText = soundEnabled ? "🔊 사운드 ON" : "🔇 사운드 OFF";
+    }
+
+    // 초기 테마 설정
+    if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+        document.getElementById('dark-mode-btn').innerText = "☀️ 라이트모드";
+    }
+
+    // --- 점수 및 게임 로직 (2단계 기능 포함) ---
+    class ScoreManager {
+        calculateScore(isCorrect, timeSpent, consecutiveCorrect, hintUsed) {
+            let score = 0;
+            if (isCorrect) {
+                score += 10;
+                if (timeSpent < 10) score += 3;
+                if (!hintUsed) score += 2;
+                if (consecutiveCorrect >= 3) score += 3;
+            }
+            return score;
+        }
+    }
+    const scoreManager = new ScoreManager();
+
+    const gameModes = {
+        full: { questions: 50, timeLimit: null },
+        category: { questions: 10, timeLimit: null },
+        speed: { questions: 20, timeLimit: 15 }
+    };
+
+    let activeQuestions = [], currentMode = null, currentQuestionIndex = 0;
+    let stats = { totalScore: 0, correctAnswers: 0, totalQuestions: 0, hintsLeft: 3, currentStreak: 0 };
+    let timerInterval = null, timeSpentOnCurrent = 0, questionStartTime = 0, isPaused = false;
+
+    // --- 화면 및 게임 제어 ---
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function selectMode(mode) {
+        currentMode = gameModes[mode];
+        if (mode === 'category') {
+            document.getElementById('category-selection').style.display = 'block';
+            renderCategoryButtons();
+        } else {
+            initGame(mode, null);
+        }
+    }
+
+    function renderCategoryButtons() {
+        const categories = [...new Set(allQuizData.map(q => q.category))];
+        const container = document.getElementById('category-container');
+        container.innerHTML = '';
+        categories.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'primary-btn';
+            btn.innerText = cat;
+            btn.style.margin = '0';
+            btn.onclick = () => initGame('category', cat);
+            container.appendChild(btn);
+        });
+    }
+
+    function initGame(modeName, category) {
+        const difficulty = document.getElementById('difficulty-select').value;
+        let pool = [...allQuizData];
+        
+        // 필터링 적용 (카테고리 및 난이도)
+        if (category) pool = pool.filter(q => q.category === category);
+        if (difficulty !== 'all') pool = pool.filter(q => q.difficulty === difficulty);
+        
+        if (pool.length === 0) {
+            alert("선택한 조건에 맞는 문제가 없습니다. 난이도를 변경해 보세요!");
+            return;
+        }
+
+        pool.sort(() => Math.random() - 0.5);
+        activeQuestions = pool.slice(0, Math.min(pool.length, gameModes[modeName].questions));
+        stats = { totalScore: 0, correctAnswers: 0, totalQuestions: activeQuestions.length, hintsLeft: 3, currentStreak: 0, mode: modeName };
+
+        if (gameModes[modeName].timeLimit) document.getElementById('timer-container').style.display = 'block';
+        showScreen('quiz-screen');
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const q = activeQuestions[currentQuestionIndex];
+        stats.currentHintUsed = false;
+        timeSpentOnCurrent = 0;
+        
+        document.getElementById('progress-text').innerText = `${currentQuestionIndex + 1} / ${stats.totalQuestions}`;
+        document.getElementById('score-display').innerText = `Score: ${stats.totalScore}`;
+        document.getElementById('combo-display').innerText = stats.currentStreak > 1 ? `${stats.currentStreak} Combo! 🔥` : '';
+        document.getElementById('hint-count').innerText = stats.hintsLeft;
+        
+        document.getElementById('question-text').innerText = q.question;
+        const opts = document.getElementById('options-container');
+        opts.innerHTML = '';
+        
+        q.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => handleAnswer(idx, btn);
+            opts.appendChild(btn);
+        });
+
+        document.getElementById('feedback-area').style.display = 'none';
+        questionStartTime = Date.now();
+        if (currentMode.timeLimit) startTimer();
+    }
+
+    // --- 유틸리티 기능 ---
+    function useHint() {
+        if (stats.hintsLeft <= 0 || stats.currentHintUsed) return;
+        const q = activeQuestions[currentQuestionIndex];
+        const btns = document.querySelectorAll('.option-btn');
+        const wrongIndices = [0, 1, 2, 3].filter(i => i !== q.correctAnswer).sort(() => Math.random() - 0.5);
+        
+        wrongIndices.slice(0, 2).forEach(idx => {
+            btns[idx].disabled = true;
+            btns[idx].style.opacity = '0.3';
+        });
+        stats.hintsLeft--; stats.currentHintUsed = true;
+        document.getElementById('hint-count').innerText = stats.hintsLeft;
+    }
+
+    function startTimer() {
+        clearInterval(timerInterval);
+        const limit = currentMode.timeLimit;
+        timerInterval = setInterval(() => {
+            timeSpentOnCurrent = (Date.now() - questionStartTime) / 1000;
+            let timeLeft = limit - timeSpentOnCurrent;
+            const bar = document.getElementById('timer-bar');
+            bar.style.width = `${(timeLeft / limit) * 100}%`;
+            bar.style.backgroundColor = timeLeft > 5 ? '#198754' : '#dc3545';
+            if (timeLeft <= 0) { clearInterval(timerInterval); handleAnswer(-1, null); }
+        }, 100);
+    }
+
+    function handleAnswer(selectedIndex, selectedBtn) {
+        clearInterval(timerInterval);
+        timeSpentOnCurrent = (Date.now() - questionStartTime) / 1000;
+        const q = activeQuestions[currentQuestionIndex];
+        const isCorrect = (selectedIndex === q.correctAnswer);
+        const btns = document.querySelectorAll('.option-btn');
+        btns.forEach(b => b.disabled = true);
+
+        if (isCorrect) {
+            stats.correctAnswers++; stats.currentStreak++;
+            if (selectedBtn) selectedBtn.classList.add('correct');
+            playSound('correct');
+        } else {
+            stats.currentStreak = 0;
+            if (selectedBtn) selectedBtn.classList.add('wrong');
+            btns[q.correctAnswer].classList.add('correct');
+            playSound('wrong');
+        }
+
+        stats.totalScore += scoreManager.calculateScore(isCorrect, timeSpentOnCurrent, stats.currentStreak, stats.currentHintUsed);
+        
+        document.getElementById('explanation').innerText = selectedIndex === -1 ? "⏰ 시간 초과!\n" + q.explanation : q.explanation;
+        document.getElementById('score-display').innerText = `Score: ${stats.totalScore}`;
+        
+        const nextBtn = document.getElementById('next-btn');
+        nextBtn.innerText = (currentQuestionIndex === stats.totalQuestions - 1) ? "최종 결과 보기" : "다음 문제";
+        document.getElementById('feedback-area').style.display = 'block';
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < stats.totalQuestions) loadQuestion();
+        else endGame();
+    }
+
+    // --- [3.2 & 3.5] 결과 및 클립보드 공유 ---
+    function endGame() {
+        showScreen('result-screen');
+        const accuracy = Math.round((stats.correctAnswers / stats.totalQuestions) * 100);
+        document.getElementById('res-score').innerText = stats.totalScore;
+        document.getElementById('res-accuracy').innerText = `${accuracy}% (${stats.correctAnswers}/${stats.totalQuestions})`;
+        
+        // 데이터 저장
+        dataManager.saveGameResult({
+            score: stats.totalScore,
+            accuracy: accuracy,
+            mode: stats.mode
+        });
+    }
+
+    function shareResult() {
+        const text = `🧠 브레인 아레나 결과!\n🎯 모드: ${stats.mode}\n🏆 점수: ${stats.totalScore}점\n✅ 정답률: ${Math.round((stats.correctAnswers / stats.totalQuestions) * 100)}%`;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("결과가 클립보드에 복사되었습니다! 친구들에게 공유해 보세요.");
+        });
+    }
+
+    // --- [3.3] 통계 대시보드 렌더링 ---
+    function renderDashboard() {
+        const history = dataManager.getGameHistory();
+        document.getElementById('dash-plays').innerText = `${history.length}회`;
+        document.getElementById('dash-best').innerText = `${dataManager.getBestScore()}점`;
+
+        const list = document.getElementById('dash-history');
+        list.innerHTML = '';
+        
+        // 최신순 정렬 후 상위 5개 노출
+        const recent = history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 5);
+        
+        if (recent.length === 0) {
+            list.innerHTML = '<li style="justify-content:center;">아직 플레이 기록이 없습니다.</li>';
+            return;
+        }
+
+        recent.forEach(record => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div><span style="color:var(--text-sub); font-size:0.8em; margin-right:10px;">${record.timestamp.split(' ')[0]}</span> <strong>${record.mode.toUpperCase()}</strong></div>
+                <div style="font-weight:bold;">${record.score}점 <span style="font-size:0.8em; color:var(--text-sub);">(${record.accuracy}%)</span></div>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+</script>
+</body>
+</html>
